@@ -1,5 +1,5 @@
 import type { Chess, Color, PieceSymbol, Square } from "chess.js";
-import { useState } from "react";
+import React, { useState } from "react";
 import { MOVE } from "../pages/Game";
 
 const ChessBoard = ({ board, socket, setBoard, chess }: {
@@ -14,6 +14,44 @@ const ChessBoard = ({ board, socket, setBoard, chess }: {
 }) => {
   const [from, setFrom] = useState<null | Square>(null);
   const [selected, setselected] = useState<null | Square>(null);
+
+  const handleDragStart = (e: React.DragEvent, square: Square ) => {
+    setFrom(square);
+    setselected(square);
+    e.dataTransfer.effectAllowed = "move";
+  }
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.effectAllowed = "move";
+  }
+
+  const handleDrop = (e: React.DragEvent, targetSquare: Square) => {
+    e.preventDefault();
+    if(!from) return;
+
+    socket.send(JSON.stringify({
+      type: MOVE, 
+      payload: {
+        move: {
+          from,
+          to: targetSquare
+        }
+      }
+    }))
+
+    try {
+      chess.move({
+        from,
+        to: targetSquare
+      });
+      setBoard(chess.board())
+    } catch (error) {
+      console.error("Invalid move:", error);
+    }
+    setFrom(null)
+    setselected(null);
+  }
 
   return (
     <div className="text-black">
@@ -54,6 +92,8 @@ const ChessBoard = ({ board, socket, setBoard, chess }: {
                       
                     }
                   }}
+                  onDragOver={handleDragOver}
+                  onDrop={(e) => handleDrop(e, squareRepresentation)}
                   key={j}
                   className={`size-20 relative ${ isSelected ? ((i+j) % 2 === 0 ? "bg-[#b7c0d8]" : "bg-[#9990eb]") : ((i+j) % 2 === 0 ? "bg-[#e8edf9]" : "bg-[#b1a7fc]")}`}
                 >
@@ -70,7 +110,7 @@ const ChessBoard = ({ board, socket, setBoard, chess }: {
                   )}
                   <div className="w-full justify-center flex h-full">
                     <div className="h-full justify-center flex flex-col">
-                      {square ? <img className="size-14" src={`/${square?.color === 'b' ? square?.type : `${square?.type?.toUpperCase()}_w`}.svg`} /> : null}
+                      {square ? <img draggable onDragStart={(e) => handleDragStart(e, squareRepresentation)} className="size-14 cursor-grab active:cursor-grabbing" src={`/${square?.color === 'b' ? square?.type : `${square?.type?.toUpperCase()}_w`}.svg`} /> : null}
                     </div>
                   </div>
                 </div>
